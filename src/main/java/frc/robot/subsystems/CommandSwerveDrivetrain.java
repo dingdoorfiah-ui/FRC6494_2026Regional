@@ -74,8 +74,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         SmartDashboard.putData("Field", m_field);
         SmartDashboard.putData("PositioningShooterll", shooter_ll_field);
         SmartDashboard.putData("PositioningIntakerll", intaker_ll_field);
-        LimelightHelpers.SetIMUMode(Constants.Limelight.LIMELIGHT_NAME_Shooter, 4);
-        LimelightHelpers.SetIMUMode(Constants.Limelight.LIMELIGHT_NAME_Intaker, 4);
+        LimelightHelpers.SetIMUMode(Constants.Limelight.LIMELIGHT_NAME_Shooter, 1);
+        LimelightHelpers.SetIMUMode(Constants.Limelight.LIMELIGHT_NAME_Intaker, 1);
         positioningNetworkTable = NetworkTableInstance.getDefault().getTable("Positioning");
         driveNetworkTable = NetworkTableInstance.getDefault().getTable("Drive");
         ll_shooter_NT = NetworkTableInstance.getDefault().getTable("Positioning/limelight-shooter");
@@ -170,10 +170,10 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         Pose2d current = getState().Pose;
 
         LimelightHelpers.PoseEstimate mt2_shooter =
-        LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(Constants.Limelight.LIMELIGHT_NAME_Shooter);
+        getLimelightPoseEstimate(Constants.Limelight.LIMELIGHT_NAME_Shooter);
         
         LimelightHelpers.PoseEstimate mt2_intaker =
-        LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(Constants.Limelight.LIMELIGHT_NAME_Intaker);
+        getLimelightPoseEstimate(Constants.Limelight.LIMELIGHT_NAME_Intaker);
 
         boolean shooterAvailable = ifLimelightPositioningAvailable(mt2_shooter, current);
         boolean intakerAvailable = ifLimelightPositioningAvailable(mt2_intaker, current);
@@ -191,11 +191,15 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             
             return;
         }else if (shooterAvailable && !intakerAvailable) {
+            double shooterDistance = current.getTranslation().getDistance(mt2_shooter.pose.getTranslation());
+            ll_shooter_NT.getEntry("Distance").setDouble(shooterDistance);
             positioningNetworkTable.getEntry("MetaTag2Available").setBoolean(true);
             positioningNetworkTable.getEntry("Usingll").setString("Shooter");
             //positioningNetworkTable.getEntry("MetaTag2DistanceDifference").setDouble(Double.NaN);
             mt2_final = mt2_shooter;
         }else if (!shooterAvailable && intakerAvailable) {
+            double intakerDistance = current.getTranslation().getDistance(mt2_intaker.pose.getTranslation());
+            ll_intaker_NT.getEntry("Distance").setDouble(intakerDistance);
             positioningNetworkTable.getEntry("MetaTag2Available").setBoolean(true);
             positioningNetworkTable.getEntry("Usingll").setString("Intaker");
             //positioningNetworkTable.getEntry("MetaTag2DistanceDifference").setDouble(Double.NaN);
@@ -205,10 +209,13 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             double shooterDistance = current.getTranslation().getDistance(mt2_shooter.pose.getTranslation());
             double intakerDistance = current.getTranslation().getDistance(mt2_intaker.pose.getTranslation());
             double difference = mt2_shooter.pose.getTranslation().getDistance(mt2_intaker.pose.getTranslation());
+
             ll_shooter_NT.getEntry("Distance").setDouble(shooterDistance);
             ll_intaker_NT.getEntry("Distance").setDouble(intakerDistance);
             positioningNetworkTable.getEntry("MetaTag2DistanceDifference").setDouble(difference);
-            positioningNetworkTable.getEntry("Usingll").setString(shooterDistance <= intakerDistance ? "Shooter" : "Intaker");
+            positioningNetworkTable.getEntry("MetaTag2XDifference").setDouble(Math.abs(mt2_shooter.pose.getX() - mt2_intaker.pose.getX()));
+            positioningNetworkTable.getEntry("MetaTag2YDifference").setDouble(Math.abs(mt2_shooter.pose.getY() - mt2_intaker.pose.getY()));
+            positioningNetworkTable.getEntry("Usingll").setString(shooterDistance <= intakerDistance ? "ChosenShooter" : "ChosenIntaker");
 
             mt2_final = shooterDistance <= intakerDistance ? mt2_shooter : mt2_intaker;
         }
@@ -234,6 +241,12 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         positioningNetworkTable.getEntry("MetaTag2Available").setBoolean(true);
     }
 
+    private LimelightHelpers.PoseEstimate getLimelightPoseEstimate(String limelightName) {
+        if (Constants.Limelight.UsingMetaTag2) {
+           return LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(limelightName);
+        }
+        return LimelightHelpers.getBotPoseEstimate_wpiBlue(limelightName);
+    }
     private boolean ifLimelightPositioningAvailable(LimelightHelpers.PoseEstimate mt2, Pose2d currentPose) {
         // 1) 没看到 tag：拒绝
         if (mt2 == null || mt2.tagCount == 0) {
@@ -269,6 +282,11 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         // 1) 每帧喂给 LL：机器人当前 yaw（度），其余先全 0
         LimelightHelpers.SetRobotOrientation(
             Constants.Limelight.LIMELIGHT_NAME_Shooter,
+            pose.getRotation().getDegrees(), // 关键：要符合 wpiBlue 约定
+            0, 0, 0, 0, 0
+        );
+        LimelightHelpers.SetRobotOrientation(
+            Constants.Limelight.LIMELIGHT_NAME_Intaker,
             pose.getRotation().getDegrees(), // 关键：要符合 wpiBlue 约定
             0, 0, 0, 0, 0
         );
