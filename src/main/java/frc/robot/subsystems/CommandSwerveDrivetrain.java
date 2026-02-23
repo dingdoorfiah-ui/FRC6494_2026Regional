@@ -193,6 +193,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         }else if (shooterAvailable && !intakerAvailable) {
             double shooterDistance = current.getTranslation().getDistance(mt2_shooter.pose.getTranslation());
             ll_shooter_NT.getEntry("Distance").setDouble(shooterDistance);
+            ll_shooter_NT.getEntry("X").setDouble(mt2_shooter.pose.getX());
+            ll_shooter_NT.getEntry("Y").setDouble(mt2_shooter.pose.getY());
             positioningNetworkTable.getEntry("MetaTag2Available").setBoolean(true);
             positioningNetworkTable.getEntry("Usingll").setString("Shooter");
             //positioningNetworkTable.getEntry("MetaTag2DistanceDifference").setDouble(Double.NaN);
@@ -200,6 +202,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         }else if (!shooterAvailable && intakerAvailable) {
             double intakerDistance = current.getTranslation().getDistance(mt2_intaker.pose.getTranslation());
             ll_intaker_NT.getEntry("Distance").setDouble(intakerDistance);
+            ll_intaker_NT.getEntry("X").setDouble(mt2_intaker.pose.getX());
+            ll_intaker_NT.getEntry("Y").setDouble(mt2_intaker.pose.getY());
             positioningNetworkTable.getEntry("MetaTag2Available").setBoolean(true);
             positioningNetworkTable.getEntry("Usingll").setString("Intaker");
             //positioningNetworkTable.getEntry("MetaTag2DistanceDifference").setDouble(Double.NaN);
@@ -212,6 +216,10 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
             ll_shooter_NT.getEntry("Distance").setDouble(shooterDistance);
             ll_intaker_NT.getEntry("Distance").setDouble(intakerDistance);
+            ll_shooter_NT.getEntry("X").setDouble(mt2_shooter.pose.getX());
+            ll_shooter_NT.getEntry("Y").setDouble(mt2_shooter.pose.getY());
+            ll_intaker_NT.getEntry("X").setDouble(mt2_intaker.pose.getX());
+            ll_intaker_NT.getEntry("Y").setDouble(mt2_intaker.pose.getY());
             positioningNetworkTable.getEntry("MetaTag2DistanceDifference").setDouble(difference);
             positioningNetworkTable.getEntry("MetaTag2XDifference").setDouble(Math.abs(mt2_shooter.pose.getX() - mt2_intaker.pose.getX()));
             positioningNetworkTable.getEntry("MetaTag2YDifference").setDouble(Math.abs(mt2_shooter.pose.getY() - mt2_intaker.pose.getY()));

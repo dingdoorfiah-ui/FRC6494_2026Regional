@@ -1,8 +1,9 @@
 package frc.robot.controls;
 
+import edu.wpi.first.networktables.NetworkTable;
+import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants;
 import frc.robot.subsystems.ShooterSubsystem;
@@ -14,31 +15,35 @@ public class ShooterControls {
 
     private double flywheelSpeedOffset = 0.0;
     private double backboardPositionOffset = 0.0;
-
+    private NetworkTable shooterControlTable;
     public ShooterControls(ShooterSubsystem shooterSubsystem, CommandXboxController controller) {
         this.shooterSubsystem = shooterSubsystem;
         this.controller = controller;
+
+        shooterControlTable = NetworkTableInstance.getDefault().getTable("shooterControl");
     }
 
     public Command defaultShooterCommand() {
         return Commands.run(() -> {
-                // System.out.println("running");
-                if (controller.getRightTriggerAxis() < 0.1) {
-                    shooterSubsystem.setConveyorSpeedByRPS(0);
-                    shooterSubsystem.setFlywheelSpeedByRPS(0);
-                    return;
-                }
                 double flywheelSpeed;
                 double backboardPosition;
                 double conveyorSpeed;
-                flywheelSpeed = calculateFlywheelSpeedOnlywithOffset(20);
+                flywheelSpeed = calculateFlywheelSpeedOnlywithOffset(30);
                 backboardPosition = calculateBackboardPositionOnlywithOffset(100);
-                conveyorSpeed = controller.getRightTriggerAxis() * Constants.Shooter.conveyorSpeedkP;
-
+                conveyorSpeed = Constants.Shooter.conveyorSpeed;
+                shooterControlTable.getEntry("flywheelTargetSpeed").setDouble(flywheelSpeed);
+                shooterControlTable.getEntry("conveyerTargetSpeed").setDouble(conveyorSpeed);
+                shooterControlTable.getEntry("backboardTargetPosition").setDouble(backboardPosition);
+                // System.out.println("running");
+                if (controller.getRightTriggerAxis() < 0.1) {
+                    flywheelSpeed = 0;
+                    conveyorSpeed = 0;
+                }
+                
                 // double flywheelSpeed = calculateFlywheelSpeed(0);
                 // double BackboardPosition = calculateBackboardPosition(0);
-                // shooterSubsystem.setFlywheelSpeedByRPS(flywheelSpeed);
-                // shooterSubsystem.setConveyorSpeedByRPS(conveyorSpeed);
+                shooterSubsystem.setFlywheelSpeedByRPS(flywheelSpeed);
+                shooterSubsystem.setConveyorSpeedByRPS(conveyorSpeed);
                 shooterSubsystem.setBackboardPosition(backboardPosition);
         }, shooterSubsystem);
     }
@@ -60,6 +65,12 @@ public class ShooterControls {
     //             shooterSubsystem.currentBackboardInalyzeMode = Mode.Inalyzed;}, shooterSubsystem));
     // }
 
+    public void outputInfo(){
+        double currentConveyorSpeed = shooterSubsystem.conveyorMotor.getVelocity().getValueAsDouble();
+        double currentFlywheelSpeed = shooterSubsystem.flywheelMotorLeft.getVelocity().getValueAsDouble();
+        double currentBackboardRate = shooterSubsystem.getBackboardPosition();
+        System.out.println("Conveyor: " + currentConveyorSpeed + "\t Flywheel: " + currentFlywheelSpeed + "\t Backboard:" + currentBackboardRate);
+    }
     public Command resetBackboardCommand(){
         return 
             Commands.runOnce(()->{

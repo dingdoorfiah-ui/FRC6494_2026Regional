@@ -6,7 +6,7 @@ import edu.wpi.first.math.geometry.Pose2d;
 public final class Constants {
     public static final boolean LEDUsing = false;
     public class Shooter {
-        public static final double conveyorSpeedkP = 10;
+        public static final double conveyorSpeed = 20;
         public static final Slot0Configs flyWheelSlot0Configs = new Slot0Configs()
             .withKP(0.0).withKI(0).withKD(0)
             .withKV(0.1).withKA(0.0).withKS(0.15);
@@ -67,7 +67,7 @@ public final class Constants {
     public class Limelight {
         public static final String LIMELIGHT_NAME_Shooter = "limelight-shooter";
         public static final String LIMELIGHT_NAME_Intaker = "limelight-intaker";
-        public static final Boolean UsingMetaTag2 = false;
+        public static final Boolean UsingMetaTag2 = true;
     }
 
     public class Field {

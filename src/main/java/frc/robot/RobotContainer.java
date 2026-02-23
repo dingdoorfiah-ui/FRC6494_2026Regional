@@ -104,8 +104,8 @@ public class RobotContainer {
 
     controller.povLeft().onTrue(Commands.runOnce(() -> shooterControls.adjustFlywheelSpeedOffset(-5)));
     controller.povRight().onTrue(Commands.runOnce(() -> shooterControls.adjustFlywheelSpeedOffset(5)));
-    controller.povUp().onTrue(Commands.runOnce(() -> shooterControls.adjustBackboardRateOffset(1500)));
-    controller.povDown().onTrue(Commands.runOnce(() -> shooterControls.adjustBackboardRateOffset(-1500)));
+    controller.povUp().onTrue(Commands.runOnce(() -> shooterControls.adjustBackboardRateOffset(500)));
+    controller.povDown().onTrue(Commands.runOnce(() -> shooterControls.adjustBackboardRateOffset(-500)));
 
     controller.b().onTrue(shooterControls.resetBackboardCommand());
   }
