@@ -539,7 +539,7 @@
       }
     },
     {
-      "name": "SwervePID",
+      "name": "PID",
       "grid_layout": {
         "layouts": [],
         "containers": [
@@ -669,9 +669,9 @@
           },
           {
             "title": "flywheelEnableRunning",
-            "x": 640.0,
-            "y": 256.0,
-            "width": 128.0,
+            "x": 896.0,
+            "y": 0.0,
+            "width": 256.0,
             "height": 128.0,
             "type": "Toggle Switch",
             "properties": {
@@ -683,8 +683,8 @@
           {
             "title": "flywheelRunningSpeedRPS",
             "x": 640.0,
-            "y": 384.0,
-            "width": 128.0,
+            "y": 128.0,
+            "width": 256.0,
             "height": 128.0,
             "type": "Text Display",
             "properties": {
@@ -697,14 +697,56 @@
           {
             "title": "flywheelEnable",
             "x": 640.0,
-            "y": 128.0,
-            "width": 128.0,
+            "y": 0.0,
+            "width": 256.0,
             "height": 128.0,
             "type": "Toggle Switch",
             "properties": {
               "topic": "/Tuning/flywheel/flywheelEnable",
               "period": 0.06,
               "data_type": "boolean"
+            }
+          },
+          {
+            "title": "flywheelkV",
+            "x": 640.0,
+            "y": 256.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/Tuning/flywheel/flywheelkV",
+              "period": 0.06,
+              "data_type": "double",
+              "show_submit_button": true
+            }
+          },
+          {
+            "title": "flywheelkS",
+            "x": 640.0,
+            "y": 384.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/Tuning/flywheel/flywheelkS",
+              "period": 0.06,
+              "data_type": "double",
+              "show_submit_button": true
+            }
+          },
+          {
+            "title": "flywheelkA",
+            "x": 640.0,
+            "y": 512.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/Tuning/flywheel/flywheelkA",
+              "period": 0.06,
+              "data_type": "double",
+              "show_submit_button": true
             }
           }
         ]
@@ -730,10 +772,10 @@
           },
           {
             "title": "limelight-shooter",
-            "x": 384.0,
-            "y": 0.0,
-            "width": 256.0,
-            "height": 256.0,
+            "x": 768.0,
+            "y": 512.0,
+            "width": 640.0,
+            "height": 384.0,
             "type": "Camera Stream",
             "properties": {
               "topic": "/CameraPublisher/limelight-shooter",
@@ -1070,7 +1112,7 @@
             "x": 1152.0,
             "y": 0.0,
             "width": 384.0,
-            "height": 384.0,
+            "height": 256.0,
             "type": "Camera Stream",
             "properties": {
               "topic": "/CameraPublisher/limelight-shooter",
@@ -1160,7 +1202,7 @@
           {
             "title": "Field",
             "x": 1152.0,
-            "y": 384.0,
+            "y": 256.0,
             "width": 384.0,
             "height": 256.0,
             "type": "Field",
@@ -1237,56 +1279,56 @@
             }
           },
           {
-            "title": "backboardTargetRate",
+            "title": "backboardTargetPosition",
             "x": 1024.0,
             "y": 256.0,
             "width": 128.0,
             "height": 128.0,
             "type": "Text Display",
             "properties": {
-              "topic": "/Shooter/backboardTargetRate",
+              "topic": "/ShooterControl/backboardTargetPosition",
               "period": 0.06,
               "data_type": "double",
               "show_submit_button": true
             }
           },
           {
-            "title": "conveyorPIDReference",
-            "x": 512.0,
-            "y": 256.0,
-            "width": 128.0,
-            "height": 128.0,
-            "type": "Text Display",
-            "properties": {
-              "topic": "/Shooter/conveyorPIDReference",
-              "period": 0.06,
-              "data_type": "double",
-              "show_submit_button": true
-            }
-          },
-          {
-            "title": "flywheelPIDReference",
+            "title": "flywheelTargetSpeed",
             "x": 768.0,
             "y": 256.0,
             "width": 128.0,
             "height": 128.0,
             "type": "Text Display",
             "properties": {
-              "topic": "/Shooter/flywheelPIDReference",
+              "topic": "/ShooterControl/flywheelTargetSpeed",
               "period": 0.06,
               "data_type": "double",
               "show_submit_button": true
             }
           },
           {
-            "title": "conveyorPIDReference",
+            "title": "conveyerTargetSpeed",
+            "x": 512.0,
+            "y": 256.0,
+            "width": 128.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/ShooterControl/conveyerTargetSpeed",
+              "period": 0.06,
+              "data_type": "double",
+              "show_submit_button": true
+            }
+          },
+          {
+            "title": "conveyerTargetSpeed",
             "x": 384.0,
             "y": 384.0,
             "width": 256.0,
             "height": 256.0,
             "type": "Graph",
             "properties": {
-              "topic": "/Shooter/conveyorPIDReference",
+              "topic": "/ShooterControl/conveyerTargetSpeed",
               "period": 0.033,
               "data_type": "double",
               "time_displayed": 5.0,
@@ -1295,14 +1337,14 @@
             }
           },
           {
-            "title": "flywheelPIDReference",
+            "title": "flywheelTargetSpeed",
             "x": 640.0,
             "y": 384.0,
             "width": 256.0,
             "height": 256.0,
             "type": "Graph",
             "properties": {
-              "topic": "/Shooter/flywheelPIDReference",
+              "topic": "/ShooterControl/flywheelTargetSpeed",
               "period": 0.033,
               "data_type": "double",
               "time_displayed": 5.0,
@@ -1311,19 +1353,139 @@
             }
           },
           {
-            "title": "backboardTargetRate",
+            "title": "backboardTargetPosition",
             "x": 896.0,
             "y": 384.0,
             "width": 256.0,
             "height": 256.0,
             "type": "Graph",
             "properties": {
-              "topic": "/Shooter/backboardTargetRate",
+              "topic": "/ShooterControl/backboardTargetPosition",
               "period": 0.033,
               "data_type": "double",
               "time_displayed": 5.0,
               "color": 4278238420,
               "line_width": 2.0
+            }
+          },
+          {
+            "title": "Usingll",
+            "x": 1152.0,
+            "y": 512.0,
+            "width": 384.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/Positioning/Usingll",
+              "period": 0.06,
+              "data_type": "string",
+              "show_submit_button": true
+            }
+          },
+          {
+            "title": "robotStatus",
+            "x": 0.0,
+            "y": 512.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/robotStatus",
+              "period": 0.06,
+              "data_type": "string",
+              "show_submit_button": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Tab 7",
+      "grid_layout": {
+        "layouts": [],
+        "containers": [
+          {
+            "title": "ActualVOmega",
+            "x": 256.0,
+            "y": 0.0,
+            "width": 128.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/AutoControl/ActualVOmega",
+              "period": 0.06,
+              "data_type": "double",
+              "show_submit_button": true
+            }
+          },
+          {
+            "title": "ActualVX",
+            "x": 0.0,
+            "y": 0.0,
+            "width": 128.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/AutoControl/ActualVX",
+              "period": 0.06,
+              "data_type": "double",
+              "show_submit_button": true
+            }
+          },
+          {
+            "title": "ActualVY",
+            "x": 128.0,
+            "y": 0.0,
+            "width": 128.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/AutoControl/ActualVY",
+              "period": 0.06,
+              "data_type": "double",
+              "show_submit_button": true
+            }
+          },
+          {
+            "title": "BumpDifference",
+            "x": 384.0,
+            "y": 128.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/AutoControl/BumpDifference",
+              "period": 0.06,
+              "data_type": "double",
+              "show_submit_button": true
+            }
+          },
+          {
+            "title": "TrenchDifference",
+            "x": 384.0,
+            "y": 256.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/AutoControl/TrenchDifference",
+              "period": 0.06,
+              "data_type": "double",
+              "show_submit_button": true
+            }
+          },
+          {
+            "title": "robotStatus",
+            "x": 0.0,
+            "y": 256.0,
+            "width": 384.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/robotStatus",
+              "period": 0.06,
+              "data_type": "string",
+              "show_submit_button": true
             }
           }
         ]

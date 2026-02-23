@@ -33,12 +33,7 @@ public class ShooterSubsystem extends SubsystemBase {
 
     private final VelocityDutyCycle velocityRequest = new VelocityDutyCycle(0);
 
-    public enum Mode{
-        Inalyzed,
-        UnInalyed,
-        Inalyzing;
-    }
-    public Mode currentBackboardInalyzeMode;
+
     // 初始化各个部件
     public ShooterSubsystem() {
         // 初始化飞轮电机
@@ -75,7 +70,6 @@ public class ShooterSubsystem extends SubsystemBase {
         
         shooterNetworkTable = NetworkTableInstance.getDefault().getTable("Shooter");
 
-        currentBackboardInalyzeMode = Mode.UnInalyed;
     }
 
     public void setRightFollowLeft(){
@@ -145,14 +139,7 @@ public class ShooterSubsystem extends SubsystemBase {
 
     @Override
     public void periodic() {
-        if(currentBackboardInalyzeMode != Mode.Inalyzing){
-            backboardPID.calculate(getBackboardPosition());
-            if(isBackboardAtTarget()){
-                backboardMotor.set(0);
-            }else{
-                outputBackboard();
-            }
-        }
+        backboardPID.calculate(getBackboardPosition());
         shooterNetworkTable.getEntry("flywheelSpeed").setDouble(flywheelMotorLeft.getVelocity().getValueAsDouble());
         shooterNetworkTable.getEntry("flywheelPIDReference").setDouble(flywheelMotorLeft.getClosedLoopReference().getValueAsDouble());
         shooterNetworkTable.getEntry("conveyorSpeed").setDouble(conveyorMotor.getVelocity().getValueAsDouble());
@@ -161,7 +148,6 @@ public class ShooterSubsystem extends SubsystemBase {
         shooterNetworkTable.getEntry("backboardTargetRate").setDouble(backboardPID.getSetpoint().position);
         shooterNetworkTable.getEntry("isBackboardAtTarget").setBoolean(isBackboardAtTarget());
         shooterNetworkTable.getEntry("distanceGetted").setDouble(getDistance());
-        shooterNetworkTable.getEntry("InalyzeBackboardMode").setString(currentBackboardInalyzeMode.name());
     }
 
     public double getDistance(){

@@ -5,6 +5,14 @@ import edu.wpi.first.math.geometry.Pose2d;
 
 public final class Constants {
     public static final boolean LEDUsing = false;
+    public enum RobotStatus{
+        Stopped,
+        AllTelop,
+        AutoAimming,
+        Climbing,
+        CrossingBump,
+        CrossingTrench
+    }
     public class Shooter {
         public static final double conveyorSpeed = 20;
         public static final Slot0Configs flyWheelSlot0Configs = new Slot0Configs()
@@ -35,15 +43,16 @@ public final class Constants {
         public static final double positionMid  = 1600;  // 中距离背板角度
         public static final double postionFar  = 3200;  // 远距离背板角度
     }
-    public class AutoRotation {
-        public static final boolean autoRotationToHubEnabled = true;
-        public static final double autoRotationToHubkP = 0.12;
-        public static final boolean autoRotationForBump = false;
-        public static final double autoRotationForBumpkP = 0.2;
+    public class AutoPositioning {
+        public static final double autoRotationkP = 0.1;
         public static final double autoRotationForBumpTargetDegrees = 45;
-
+        public static final double autoRotationForTrenchTargetDegrees = 0;
         public static final boolean teleopOffsetEnabled = true;
         public static final double teleopOffsetkP = 15;
+
+        public static final double autoPositioningkP = 0.1;
+        public static final double[] bumpY = {2.51,5.556};
+        public static final double[] trenchY = {0.639,7.43};
     }
 
     public class StartingPoints{

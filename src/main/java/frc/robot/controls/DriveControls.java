@@ -8,10 +8,13 @@ import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants;
+import frc.robot.RobotStatusManager;
 import frc.robot.Constants.DriveMode;
+import frc.robot.Constants.RobotStatus;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 
@@ -43,6 +46,7 @@ public class DriveControls {
 
     private NetworkTable autoControlNetworkTable;
     
+    private final RobotStatusManager robotStatusManager;
     public void setBoostEnabled(boolean enabled) {
         boostEnabled = enabled;
     }
@@ -62,36 +66,34 @@ public class DriveControls {
         .withRotationalDeadband(maxAngularRate * 0.05)
         .withDriveRequestType(DriveRequestType.Velocity);
     
-    public DriveControls(CommandSwerveDrivetrain drivetrain, CommandXboxController driver) {
+    public DriveControls(CommandSwerveDrivetrain drivetrain, CommandXboxController driver, RobotStatusManager rsm) {
         this.drivetrain = drivetrain;
         this.driver = driver;
+        this.robotStatusManager = rsm;
         autoControlNetworkTable = NetworkTableInstance.getDefault().getTable("AutoControl");
     }
     
-    public void toggleDriveFrame() {
-        fieldCentricEnabled = !fieldCentricEnabled;
+    public void setFieldCentricEnabled(boolean enabled) {
+        fieldCentricEnabled = enabled;
     }
     
     public boolean isFieldCentricEnabled() {
         return fieldCentricEnabled;
     }
-    public DriveMode getCurrentDriveMode() {
-        return fieldCentricEnabled ? DriveMode.FIELD_CENTRIC : DriveMode.ROBOT_CENTRIC;
-    }
+
     /** 底盘的默认驾驶命令（teleop 期间持续执行） */
     public Command defaultDriveCommand() {
         return drivetrain.applyRequest(() -> {
+        SmartDashboard.putString("robotStatus",robotStatusManager.getStatus().name());
         double driveScale = boostEnabled ? boostDriveScale : normalDriveScale;
         double turnScale  = boostEnabled ? boostTurnScale  : normalTurnScale;
-
         double vx = -driver.getLeftY() * maxSpeed * driveScale;
         double vy = -driver.getLeftX() * maxSpeed * driveScale;
-        double omega = -driver.getRightX() * maxAngularRate * turnScale;
-
+        double vomega = -driver.getRightX() * maxAngularRate * turnScale;
         // ====== execute 内替换 limiter：只限加速、不限减速 ======
         double limitedVx = limitAccelOnly(vx, lastVx, vxLimiter);
         double limitedVy = limitAccelOnly(vy, lastVy, vyLimiter);
-        double limitedOmega = limitAccelOnly(omega, lastOmega, omegaLimiter);
+        double limitedOmega = limitAccelOnly(vomega, lastOmega, omegaLimiter);
 
         lastVx = limitedVx;
         lastVy = limitedVy;
@@ -99,45 +101,100 @@ public class DriveControls {
 
         vx = limitedVx;
         vy = limitedVy;
-        omega = limitedOmega;
-        
+        vomega = limitedOmega;
+
         double[] distanceAndRotation = calculateDistanceAndRotationToHub();
         // 将距离值写入 NetworkTable
         autoControlNetworkTable.getEntry("distanceToHub").setDouble(distanceAndRotation[0]);
         autoControlNetworkTable.getEntry("angleDifferenceToHub").setDouble(distanceAndRotation[1]);
 
-        if(Constants.AutoRotation.autoRotationToHubEnabled) {
-            double autoRotationPower = driver.getLeftTriggerAxis();
-            if(autoRotationPower > 0.1) {
-                autoControlNetworkTable.getEntry("autoRotationAvailable").setBoolean(true);
+        switch (robotStatusManager.getStatus()) {
+            case Stopped:
+                vx = 0;
+                vy = 0;
+                vomega = 0;
+                break;
+            case AutoAimming:
+                vomega = calculateRotationSpeedFromRotationAngle(distanceAndRotation[1]);
+                autoControlNetworkTable.getEntry("autoRotationRate").setDouble(vomega);
+                break;
+            case AllTelop:
+                autoControlNetworkTable.getEntry("autoRotationRate").setDouble(Double.NaN);
+                break;
+            case Climbing:
+                break;
+            case CrossingBump:
+                double differenceBump = calculateDifferenceToTwoTarget(drivetrain.getState().Pose.getY(), Constants.AutoPositioning.bumpY[0], Constants.AutoPositioning.bumpY[1]);
+                vy = differenceBump * Constants.AutoPositioning.autoPositioningkP;
+                autoControlNetworkTable.getEntry("BumpDifference").setDouble(differenceBump);
+                //vomega = calculateRotationSpeedForBump();
+                break;
+            case CrossingTrench:
+                double differenceTrench = calculateDifferenceToTwoTarget(drivetrain.getState().Pose.getY(), Constants.AutoPositioning.trenchY[0], Constants.AutoPositioning.trenchY[1]);
+                vy = differenceTrench * Constants.AutoPositioning.autoPositioningkP;
+                autoControlNetworkTable.getEntry("TrenchDifference").setDouble(differenceTrench);
+                //vomega = calculateRotationSpeedForTrench();
+                break;
+        }        
 
-                double angleDifference = distanceAndRotation[1];
+        autoControlNetworkTable.getEntry("ActualVX").setDouble(vx);
+        autoControlNetworkTable.getEntry("ActualVY").setDouble(vy);
+        autoControlNetworkTable.getEntry("ActualVOmega").setDouble(vomega);
 
-                // Calculate rotation speed using the angle difference
-                omega = calculateRotationSpeedFromRotationAngle(angleDifference, autoRotationPower);
-
-                autoControlNetworkTable.getEntry("autoRotationRate").setDouble(omega);
-            } else {
-                autoControlNetworkTable.getEntry("autoRotationAvailable").setBoolean(false);
-            }
-        }
-
-      
-
-        if (fieldCentricEnabled) {
+        if (fieldCentricEnabled || 
+            robotStatusManager.getStatus() == RobotStatus.CrossingBump || 
+            robotStatusManager.getStatus() == RobotStatus.CrossingTrench) {
             return fieldCentric
                 .withVelocityX(vx)
                 .withVelocityY(vy)
-                .withRotationalRate(omega);
+                .withRotationalRate(vomega);
         } else {
             return robotCentric
                 .withVelocityX(vx)
                 .withVelocityY(vy)
-                .withRotationalRate(omega);
+                .withRotationalRate(vomega);
         }
-        }, () -> fieldCentricEnabled ? DriveMode.FIELD_CENTRIC : DriveMode.ROBOT_CENTRIC);
+        }, () -> fieldCentricEnabled || 
+            robotStatusManager.getStatus() == RobotStatus.CrossingBump || 
+            robotStatusManager.getStatus() == RobotStatus.CrossingTrench
+             ? DriveMode.FIELD_CENTRIC : DriveMode.ROBOT_CENTRIC);
     }
-    
+
+    /**
+         * 输出移动到距离两个目标之间较近的那个点的位移
+         * @return 位移 有正负
+         */
+    public double calculateDifferenceToTwoTarget(double current, double target1, double target2){
+          double x1 = target1 - current;
+          double x2 = target2 - current;
+          return Math.abs(x1) < Math.abs(x2) ? x1 : x2;
+    }
+    public double calculateRotationSpeedForTrench(){
+        Pose2d currentPose = drivetrain.getState().Pose; // 获取机器人当前的位置和角度
+        double currentAngle = currentPose.getRotation().getDegrees();
+        double targetAngle = Constants.AutoPositioning.autoRotationForTrenchTargetDegrees; // 转换为度
+        double angleDifference = targetAngle - currentAngle;
+        // Normalize angle difference to the range [-180, 180]
+        if (angleDifference > 180) {
+            angleDifference -= 360;
+        } else if (angleDifference < -180) {
+            angleDifference += 360;
+        }
+        return calculateRotationSpeedFromRotationAngle(angleDifference);
+    }
+    public double calculateRotationSpeedForBump(){
+        Pose2d currentPose = drivetrain.getState().Pose; // 获取机器人当前的位置和角度
+        double currentAngle = currentPose.getRotation().getDegrees();
+        double targetAngle = Constants.AutoPositioning.autoRotationForBumpTargetDegrees; // 转换为度
+        double angleDifference = targetAngle - currentAngle;
+        // Normalize angle difference to the range [-180, 180]
+        if (angleDifference > 180) {
+            angleDifference -= 360;
+        } else if (angleDifference < -180) {
+            angleDifference += 360;
+        }
+        return calculateRotationSpeedFromRotationAngle(angleDifference);
+    }
     // Calculate distance and rotation (angle difference)
     public double[] calculateDistanceAndRotationToHub() {
         Pose2d currentPose = drivetrain.getState().Pose; // 获取机器人当前的位置和角度
@@ -169,18 +226,18 @@ public class DriveControls {
     }
 
     // Calculate rotation speed from rotation angle difference
-    public double calculateRotationSpeedFromRotationAngle(double angleDifference, double autoRotationPower) {
+    public double calculateRotationSpeedFromRotationAngle(double angleDifference) {
         double calDifference = angleDifference;
 
         // Optional: Apply teleop offset if enabled
-        if (Constants.AutoRotation.teleopOffsetEnabled) {
+        if (Constants.AutoPositioning.teleopOffsetEnabled) {
             double teleopOffset = -driver.getRightX();
-            calDifference += teleopOffset * Constants.AutoRotation.teleopOffsetkP;
+            calDifference += teleopOffset * Constants.AutoPositioning.teleopOffsetkP;
         }
 
         // If angle difference is within threshold, don't rotate
         if (Math.abs(calDifference) > 1.0) {
-            return calDifference * autoRotationPower * Constants.AutoRotation.autoRotationToHubkP;
+            return calDifference  * Constants.AutoPositioning.autoRotationkP;
         } else {
             return 0;
         }

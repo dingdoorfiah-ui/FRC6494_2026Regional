@@ -10,6 +10,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
+import frc.robot.Constants.RobotStatus;
 import frc.robot.controls.DriveControls;
 import frc.robot.controls.ShooterControls;
 import frc.robot.generated.TunerConstants;
@@ -41,12 +42,13 @@ public class RobotContainer {
   // LED 子系统
   private final LEDSubsystem leds = new LEDSubsystem(0, 72 ,0); // 总长度=72+72         
 
+  private final RobotStatusManager robotStatusManager = new RobotStatusManager();
   /* ====================== */
   /*     控制封装/日志        */
   /* ====================== */
 
-  private final DriveControls driveControls = new DriveControls(drivetrain, controller);
-  private final ShooterControls shooterControls = new ShooterControls(shooterSubsystem, controller);
+  private final DriveControls driveControls = new DriveControls(drivetrain, controller,robotStatusManager );
+  private final ShooterControls shooterControls = new ShooterControls(shooterSubsystem, controller,robotStatusManager);
 
   private final DriveGainsTuner driveGainsTuner = new DriveGainsTuner(drivetrain);
   private ConfigTalonFXMotorTuner configFlywheelTuner = new ConfigTalonFXMotorTuner(shooterSubsystem.flywheelMotorLeft, "flywheel", Constants.Shooter.flyWheelSlot0Configs);
@@ -55,6 +57,7 @@ public class RobotContainer {
 
   private final SendableChooser<Command> autoChooser;
 
+  
   public RobotContainer() {
     SignalLogger.enableAutoLogging(false);
     autoChooser = AutoBuilder.buildAutoChooser();
@@ -72,31 +75,46 @@ public class RobotContainer {
     Pose2d startingPose = Constants.StartingPoints.Red.Point2;
     drivetrain.resetPose(startingPose);
 
-    // 默认驾驶命令
+    // 默认驾驶命令 
+    /*
+     * LeftX 底盘左右
+     * LeftY 底盘前后  Bump/Trench偏移未完成
+     * RightX Aiming偏移    AllTelop模式下 底盘旋转
+     * 
+    */
     drivetrain.setDefaultCommand(driveControls.defaultDriveCommand());
 
     // Disabled 时进入 idle（防止模块乱动）
     RobotModeTriggers.disabled().whileTrue(driveControls.idleCommand());
 
     
-    //左保险：按住刹车
-    controller.leftBumper()
-      .onTrue(Commands.runOnce(driveControls::emergencyStop))
-      .whileTrue(driveControls.brakeWhileHeld());
+    // //左保险：按住刹车
+    // controller.leftBumper()
+    //   .onTrue(Commands.runOnce(driveControls::emergencyStop))
+    //   .whileTrue(driveControls.brakeWhileHeld());
+    
+    // // 右保险：按住加速（Boost）
+    // controller.rightBumper()
+    //     .onTrue(Commands.runOnce(() -> driveControls.setBoostEnabled(true)))
+    //     .onFalse(Commands.runOnce(() -> driveControls.setBoostEnabled(false)));
 
-    // Back：重置场地坐标系
+    // Back：重置场地坐标系角度
     controller.back().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
     
-    // Start：切换场地/车体坐标系
-    controller.start().onTrue(Commands.runOnce(driveControls::toggleDriveFrame));
+    // Start：强行使用metaTag2全场定位
+    controller.start().whileTrue(drivetrain.run(drivetrain::forceUsingLimelightMT2));
 
-    // 右保险：按住加速（Boost）
-    controller.rightBumper()
-        .onTrue(Commands.runOnce(() -> driveControls.setBoostEnabled(true)))
-        .onFalse(Commands.runOnce(() -> driveControls.setBoostEnabled(false)));
+    //LM 按下时使用机器人坐标系
+    controller.leftStick().onTrue(robotStatusManager.setStatusCommand(RobotStatus.AutoAimming));
+    controller.leftStick().onFalse(robotStatusManager.setStatusCommand(RobotStatus.AllTelop));
 
-    controller.a().whileTrue(drivetrain.runOnce(drivetrain::forceUsingLimelightMT2));
-
+    controller.rightStick().and(controller.leftBumper())
+    .onTrue(robotStatusManager.setStatusCommand(RobotStatus.CrossingBump))
+    .onFalse(robotStatusManager.setStatusCommand(RobotStatus.AllTelop));
+    
+    controller.rightStick().and(controller.rightBumper())
+    .onTrue(robotStatusManager.setStatusCommand(RobotStatus.CrossingTrench))
+    .onFalse(robotStatusManager.setStatusCommand(RobotStatus.AllTelop));
   }
 
   private void configueShooter(){
@@ -107,7 +125,6 @@ public class RobotContainer {
     controller.povUp().onTrue(Commands.runOnce(() -> shooterControls.adjustBackboardRateOffset(100)));
     controller.povDown().onTrue(Commands.runOnce(() -> shooterControls.adjustBackboardRateOffset(-100)));
   }
-
   /* ====================== */
   /*        LED 绑定          */
   /* ====================== */
