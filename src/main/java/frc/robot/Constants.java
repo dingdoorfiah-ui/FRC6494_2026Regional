@@ -9,7 +9,7 @@ public final class Constants {
         public static final double conveyorSpeed = 20;
         public static final Slot0Configs flyWheelSlot0Configs = new Slot0Configs()
             .withKP(0.0).withKI(0).withKD(0)
-            .withKV(0.1).withKA(0.0).withKS(0.15);
+            .withKV(0.0088).withKA(0.0).withKS(0.0);
 
         public static final Slot0Configs conveyorSlot0Configs = new Slot0Configs()
             .withKP(0.0).withKI(0).withKD(0)

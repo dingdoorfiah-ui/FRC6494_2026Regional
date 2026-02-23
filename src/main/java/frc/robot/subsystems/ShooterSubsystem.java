@@ -164,7 +164,7 @@ public class ShooterSubsystem extends SubsystemBase {
         shooterNetworkTable.getEntry("InalyzeBackboardMode").setString(currentBackboardInalyzeMode.name());
     }
 
-    private double getDistance(){
+    public double getDistance(){
         //获得车子距离Hub的距离
         return NetworkTableInstance.getDefault().getTable("AutoControl").getEntry("distanceToHub").getDouble(0.0);
     }
