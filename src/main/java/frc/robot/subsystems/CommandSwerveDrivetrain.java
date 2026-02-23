@@ -50,6 +50,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     private DriveMode m_driveMode = DriveMode.OTHER;
     
     private NetworkTable positioningNetworkTable;
+    private NetworkTable ll_shooter_NT;
+    private NetworkTable ll_intaker_NT;
     private NetworkTable driveNetworkTable;
     
     private final StructPublisher<Pose2d> posePub =
@@ -58,16 +60,26 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         .publish();
 
     private Field2d m_field;
+    private Field2d shooter_ll_field;
+    private Field2d intaker_ll_field;
+
     public CommandSwerveDrivetrain(
         SwerveDrivetrainConstants drivetrainConstants,
         SwerveModuleConstants<?, ?, ?>... modules
     ) {
         super(drivetrainConstants, modules);
         m_field = new Field2d();
+        shooter_ll_field = new Field2d();
+        intaker_ll_field = new Field2d();
         SmartDashboard.putData("Field", m_field);
-        LimelightHelpers.SetIMUMode(Constants.Limelight.LIMELIGHT_NAME, 0);
+        SmartDashboard.putData("PositioningShooterll", shooter_ll_field);
+        SmartDashboard.putData("PositioningIntakerll", intaker_ll_field);
+        LimelightHelpers.SetIMUMode(Constants.Limelight.LIMELIGHT_NAME_Shooter, 4);
+        LimelightHelpers.SetIMUMode(Constants.Limelight.LIMELIGHT_NAME_Intaker, 4);
         positioningNetworkTable = NetworkTableInstance.getDefault().getTable("Positioning");
         driveNetworkTable = NetworkTableInstance.getDefault().getTable("Drive");
+        ll_shooter_NT = NetworkTableInstance.getDefault().getTable("Positioning/limelight-shooter");
+        ll_intaker_NT = NetworkTableInstance.getDefault().getTable("Positioning/limelight-intaker");
 
         configueAutoBuilder();
 
@@ -144,7 +156,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     
     public void forceUsingLimelightMT2() {
         LimelightHelpers.PoseEstimate mt2 =
-        LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(Constants.Limelight.LIMELIGHT_NAME);
+        LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(Constants.Limelight.LIMELIGHT_NAME_Shooter);
 
         if (mt2 == null || mt2.tagCount == 0) {
             return;
@@ -155,12 +167,53 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     }
     
     private void fuseLimelightMT2() {
-        
-        LimelightHelpers.PoseEstimate mt2 =
-        LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(Constants.Limelight.LIMELIGHT_NAME);
-
         Pose2d current = getState().Pose;
-        Pose2d mt2Pose = mt2.pose;
+
+        LimelightHelpers.PoseEstimate mt2_shooter =
+        LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(Constants.Limelight.LIMELIGHT_NAME_Shooter);
+        
+        LimelightHelpers.PoseEstimate mt2_intaker =
+        LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(Constants.Limelight.LIMELIGHT_NAME_Intaker);
+
+        boolean shooterAvailable = ifLimelightPositioningAvailable(mt2_shooter, current);
+        boolean intakerAvailable = ifLimelightPositioningAvailable(mt2_intaker, current);
+        ll_shooter_NT.getEntry("available").setBoolean(shooterAvailable);
+        ll_intaker_NT.getEntry("available").setBoolean(intakerAvailable);
+        ll_shooter_NT.getEntry("TagCount").setNumber(mt2_shooter != null ? mt2_shooter.tagCount : 0);
+        ll_intaker_NT.getEntry("TagCount").setNumber(mt2_intaker != null ? mt2_intaker.tagCount : 0);
+        
+        LimelightHelpers.PoseEstimate mt2_final = null;
+
+        if(!shooterAvailable && !intakerAvailable) {
+            positioningNetworkTable.getEntry("MetaTag2Available").setBoolean(false);
+            positioningNetworkTable.getEntry("Usingll").setString("None");
+            //positioningNetworkTable.getEntry("MetaTag2DistanceDifference").setDouble(Double.NaN);
+            
+            return;
+        }else if (shooterAvailable && !intakerAvailable) {
+            positioningNetworkTable.getEntry("MetaTag2Available").setBoolean(true);
+            positioningNetworkTable.getEntry("Usingll").setString("Shooter");
+            //positioningNetworkTable.getEntry("MetaTag2DistanceDifference").setDouble(Double.NaN);
+            mt2_final = mt2_shooter;
+        }else if (!shooterAvailable && intakerAvailable) {
+            positioningNetworkTable.getEntry("MetaTag2Available").setBoolean(true);
+            positioningNetworkTable.getEntry("Usingll").setString("Intaker");
+            //positioningNetworkTable.getEntry("MetaTag2DistanceDifference").setDouble(Double.NaN);
+            mt2_final = mt2_intaker;
+        }else {
+            // 两个都可用时的策略：这里简单选更近的，你也
+            double shooterDistance = current.getTranslation().getDistance(mt2_shooter.pose.getTranslation());
+            double intakerDistance = current.getTranslation().getDistance(mt2_intaker.pose.getTranslation());
+            double difference = mt2_shooter.pose.getTranslation().getDistance(mt2_intaker.pose.getTranslation());
+            ll_shooter_NT.getEntry("Distance").setDouble(shooterDistance);
+            ll_intaker_NT.getEntry("Distance").setDouble(intakerDistance);
+            positioningNetworkTable.getEntry("MetaTag2DistanceDifference").setDouble(difference);
+            positioningNetworkTable.getEntry("Usingll").setString(shooterDistance <= intakerDistance ? "Shooter" : "Intaker");
+
+            mt2_final = shooterDistance <= intakerDistance ? mt2_shooter : mt2_intaker;
+        }
+        
+        Pose2d mt2Pose = mt2_final.pose;
 
         double distance = current.getTranslation().getDistance(mt2Pose.getTranslation());
         Rotation2d deltaRotation = current.getRotation().minus(mt2Pose.getRotation());
@@ -172,49 +225,50 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         positioningNetworkTable.getEntry("PoseDistance").setDouble(distance);
         positioningNetworkTable.getEntry("RotationDifference").setDouble(Math.abs(deltaRotation.getDegrees()));
 
-        // 1) 没看到 tag：拒绝
-        if (mt2 == null || mt2.tagCount == 0) {
-            positioningNetworkTable.getEntry("MetaTag2Available").setBoolean(false);
-            return;
-        }
-        // 2) 转太快：拒绝（角速度你可以从 Pigeon2 或 drivetrain state 拿）
-        double omegaDegPerSec = getPigeon2().getAngularVelocityZWorld().getValueAsDouble(); // 若你有这个信号
-        if (Math.abs(omegaDegPerSec) > kMaxOmegaDegPerSec) {
-            positioningNetworkTable.getEntry("MetaTag2Available").setBoolean(false);
-            System.out.println("NoUsingMetaTag2ForTooFastRotationSpeed");
-            return;
-        }      
-
-        // 3) 跳变太大：拒绝（Phoenix6 推荐的稳定策略）
-        //Pose2d current = getState().Pose;
-        if (current.getTranslation().getDistance(mt2.pose.getTranslation()) > kMaxVisionJumpMeters) {
-            positioningNetworkTable.getEntry("MetaTag2Available").setBoolean(false);
-            System.out.println("NoUsingMetaTag2ForTooChangingPose");
-            return;
-        }
-
         // 4) 设置测量噪声（示例：theta 基本不信任就给极大）
         // 你也可以根据 mt2.avgTagDist / mt2.tagSpan 动态调
         var stdDevs = VecBuilder.fill(0.7, 0.7, 9999999);
 
         // 5) 融合：注意 timestampSeconds 的处理
-        addVisionMeasurement(mt2.pose, mt2.timestampSeconds, stdDevs);
+        addVisionMeasurement(mt2_final.pose, mt2_final.timestampSeconds, stdDevs);
         positioningNetworkTable.getEntry("MetaTag2Available").setBoolean(true);
     }
 
+    private boolean ifLimelightPositioningAvailable(LimelightHelpers.PoseEstimate mt2, Pose2d currentPose) {
+        // 1) 没看到 tag：拒绝
+        if (mt2 == null || mt2.tagCount == 0) {
+            return false;
+        }
+        // 2) 转太快：拒绝（角速度你可以从 Pigeon2 或 drivetrain state 拿）
+        double omegaDegPerSec = getPigeon2().getAngularVelocityZWorld().getValueAsDouble(); // 若你有这个信号
+        if (Math.abs(omegaDegPerSec) > kMaxOmegaDegPerSec) {
+            System.out.println("NoUsingMetaTag2ForTooFastRotationSpeed");
+            return false;
+        }      
 
+        // 3) 跳变太大：拒绝（Phoenix6 推荐的稳定策略）
+        //Pose2d current = getState().Pose;
+        if (currentPose.getTranslation().getDistance(mt2.pose.getTranslation()) > kMaxVisionJumpMeters) {
+            System.out.println("NoUsingMetaTag2ForTooChangingPose");
+            return false;
+        }
+
+        return true;
+    }
     @Override
     public void periodic() {
         Pose2d pose = getState().Pose;
         m_field.setRobotPose(pose);
         posePub.set(pose);
+        shooter_ll_field.setRobotPose(LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(Constants.Limelight.LIMELIGHT_NAME_Shooter).pose);
+        intaker_ll_field.setRobotPose(LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(Constants.Limelight.LIMELIGHT_NAME_Intaker).pose);
         driveNetworkTable.getEntry("YawFromState").setDouble(getState().Pose.getRotation().getDegrees());
         driveNetworkTable.getEntry("DriveMode").setString(m_driveMode.name());
         driveNetworkTable.getEntry("IsFieldCentric").setBoolean(m_driveMode == DriveMode.FIELD_CENTRIC);
 
         // 1) 每帧喂给 LL：机器人当前 yaw（度），其余先全 0
         LimelightHelpers.SetRobotOrientation(
-            Constants.Limelight.LIMELIGHT_NAME,
+            Constants.Limelight.LIMELIGHT_NAME_Shooter,
             pose.getRotation().getDegrees(), // 关键：要符合 wpiBlue 约定
             0, 0, 0, 0, 0
         );
