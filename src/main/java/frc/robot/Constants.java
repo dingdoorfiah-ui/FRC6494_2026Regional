@@ -33,7 +33,7 @@ public final class Constants {
             public static final double kD = 0.0;
             
         }
-        public static final double backboardSpeedMax = 60; //也就是output
+        public static final double backboardSpeedMax = 30; //也就是output
         // 背板的上下限位角度
         public static final double backboardUpLimit = 3000.0;  // 背板上限角度（根据实际需求设置）
         public static final double backboardDownLimit = 0.0;  // 背板下限角度（根据实际需求设置）
@@ -50,9 +50,13 @@ public final class Constants {
         public static final boolean teleopOffsetEnabled = true;
         public static final double teleopOffsetkP = 15;
 
-        public static final double autoPositioningkP = 0.1;
+        public static final double autoPositioningkP = 1.0;
+
         public static final double[] bumpY = {2.51,5.556};
         public static final double[] trenchY = {0.639,7.43};
+
+        public static final double TrenchtargetAngle = 0;
+        public static final double TurningkP = 1.5;
     }
 
     public class StartingPoints{

@@ -6,6 +6,7 @@ import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -59,6 +60,13 @@ public class DriveControls {
             .withDeadband(maxSpeed * 0.05)
             .withRotationalDeadband(maxAngularRate * 0.05)
             .withDriveRequestType(DriveRequestType.Velocity);
+
+    private final SwerveRequest.FieldCentric fieldCentricAuto =
+    new SwerveRequest.FieldCentric()
+        .withDeadband(maxSpeed * 0.05)
+        .withRotationalDeadband(maxAngularRate * 0.05)
+        .withDriveRequestType(DriveRequestType.Velocity)
+        .withForwardPerspective(SwerveRequest.ForwardPerspectiveValue.BlueAlliance);
 
     private final SwerveRequest.RobotCentric robotCentric =
     new SwerveRequest.RobotCentric()
@@ -125,14 +133,64 @@ public class DriveControls {
                 break;
             case CrossingBump:
                 double differenceBump = calculateDifferenceToTwoTarget(drivetrain.getState().Pose.getY(), Constants.AutoPositioning.bumpY[0], Constants.AutoPositioning.bumpY[1]);
-                vy = differenceBump * Constants.AutoPositioning.autoPositioningkP;
+                if (Math.abs(differenceBump) < 0.1) {
+                    vy = 0;
+                } else {
+                    double raw = differenceBump * Constants.AutoPositioning.autoPositioningkP;
+                    vy = Math.copySign(
+                        Math.max(Math.abs(raw), 0.4),
+                        raw
+                    );
+                }
                 autoControlNetworkTable.getEntry("BumpDifference").setDouble(differenceBump);
+
+                Rotation2d BumpcurrentAngle = drivetrain.getState().Pose.getRotation();
+                double BumpcurrentRad = BumpcurrentAngle.getRadians();
+                double targetA = Math.toRadians(135.0);
+                double targetB = Math.toRadians(-135.0);
+                // 计算误差
+                double errorA = targetA - BumpcurrentRad;
+                double errorB = targetB - BumpcurrentRad;
+                // 角度归一化到 [-pi, pi]
+                errorA = Math.atan2(Math.sin(errorA), Math.cos(errorA));
+                errorB = Math.atan2(Math.sin(errorB), Math.cos(errorB));
+                // 选误差绝对值更小的那个
+                double chosenError = (Math.abs(errorA) <= Math.abs(errorB)) ? errorA : errorB;
+
+                if (Math.abs(chosenError) < Math.toRadians(2.0)) {
+                    vomega = 0.0;
+                } else {
+                    vomega = chosenError * Constants.AutoPositioning.TurningkP;
+                }
+                // 限制最大角速度
+                vomega = Math.max(-maxAngularRate, Math.min(maxAngularRate, vomega));
+
                 //vomega = calculateRotationSpeedForBump();
                 break;
             case CrossingTrench:
                 double differenceTrench = calculateDifferenceToTwoTarget(drivetrain.getState().Pose.getY(), Constants.AutoPositioning.trenchY[0], Constants.AutoPositioning.trenchY[1]);
-                vy = differenceTrench * Constants.AutoPositioning.autoPositioningkP;
+                if (Math.abs(differenceTrench) < 0.1) {
+                    vy = 0;
+                } else {
+                    double raw = differenceTrench * Constants.AutoPositioning.autoPositioningkP;
+                    vy = Math.copySign(
+                        Math.max(Math.abs(raw), 0.4),
+                        raw
+                    );
+                }
                 autoControlNetworkTable.getEntry("TrenchDifference").setDouble(differenceTrench);
+                Rotation2d currentAngle = drivetrain.getState().Pose.getRotation();
+                double currentRad = currentAngle.getRadians();
+                double targetRad = Math.toRadians(Constants.AutoPositioning.TrenchtargetAngle);
+                double TrenchAngleerror = targetRad - currentRad;
+                if (Math.abs(TrenchAngleerror) < Math.toRadians(1.0)) {
+                    vomega = 0.0;
+                } else {
+                    vomega = TrenchAngleerror * Constants.AutoPositioning.TurningkP;
+                }
+                // 限幅（防止转太快）
+                vomega = Math.max(-maxAngularRate, Math.min(maxAngularRate, vomega));
+
                 //vomega = calculateRotationSpeedForTrench();
                 break;
         }        
@@ -140,11 +198,16 @@ public class DriveControls {
         autoControlNetworkTable.getEntry("ActualVX").setDouble(vx);
         autoControlNetworkTable.getEntry("ActualVY").setDouble(vy);
         autoControlNetworkTable.getEntry("ActualVOmega").setDouble(vomega);
+        
+        boolean isAutoLike =
+            robotStatusManager.getStatus() == RobotStatus.CrossingBump ||
+            robotStatusManager.getStatus() == RobotStatus.CrossingTrench;
 
-        if (fieldCentricEnabled || 
-            robotStatusManager.getStatus() == RobotStatus.CrossingBump || 
-            robotStatusManager.getStatus() == RobotStatus.CrossingTrench) {
-            return fieldCentric
+        if (fieldCentricEnabled || isAutoLike) {
+
+    // 自动状态用 BlueAlliance（不翻转），手柄 field-centric 仍用原 fieldCentric（OperatorPerspective）
+        var chosen = isAutoLike ? fieldCentricAuto : fieldCentric;
+        return chosen
                 .withVelocityX(vx)
                 .withVelocityY(vy)
                 .withRotationalRate(vomega);
@@ -161,6 +224,7 @@ public class DriveControls {
     }
 
     /**
+     * 
          * 输出移动到距离两个目标之间较近的那个点的位移
          * @return 位移 有正负
          */

@@ -36,6 +36,7 @@ public class ShooterControls {
                     double backboardPosition = 0;
                     double conveyorSpeed = 0;
                     var x = shooterSubsystem.getDistance();
+                    x = Math.max(1.2, Math.min(4.5, x));
                     flywheelSpeed = 0.6956596811733782*x*x*x*x*x*x*x-14.164408860183267*x*x*x*x*x*x+119.7115375240918*x*x*x*x*x-543.0984876677477*x*x*x*x+1425.1928543240738*x*x*x-2156.199296490315*x*x+1736.568139600292*x-516.097598057351;
                     flywheelSpeed += flywheelSpeedOffset;
                     backboardPosition = -122.11889023593778*x*x*x*x*x*x*x+2453.385583841308*x*x*x*x*x*x-20553.05413872581*x*x*x*x*x+92963.33175750206*x*x*x*x-244905.25916147238*x*x*x+375150.1363997868*x*x-308031.51715612336*x+104203.52690842684;
